@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOKEN::TERMINAL — Base Network</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #020b06;
+  --surface: #041008;
+  --border: #0f3a1a;
+  --green: #00ff41;
+  --green2: #00c832;
+  --green-dim: rgba(0,255,65,0.06);
+  --amber: #ffb700;
+  --red: #ff2244;
+  --cyan: #00ffe7;
+  --text: #b8ffca;
+  --muted: #3a7a4a;
+  --glow: 0 0 12px rgba(0,255,65,0.45);
+  --glow-strong: 0 0 24px rgba(0,255,65,0.8), 0 0 48px rgba(0,255,65,0.3);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.13) 2px,rgba(0,0,0,0.13) 4px);
+  pointer-events:none; z-index:999;
+}
+@keyframes flicker { 0%,100%{opacity:1} 93%{opacity:.85} 94%{opacity:1} 96%{opacity:.9} 97%{opacity:1} }
+body { animation: flicker 10s infinite; }
+
+.terminal { max-width: 740px; margin: 0 auto; padding: 24px 16px 80px; }
+
+/* Boot header */
+.boot-header {
+  border: 1px solid var(--green);
+  padding: 18px 22px;
+  margin-bottom: 20px;
+  position: relative;
+  box-shadow: var(--glow);
+}
+.boot-header::before {
+  content: '[ TOKEN::TERMINAL v2.4 ]';
+  position: absolute; top: -10px; left: 14px;
+  background: var(--bg); padding: 0 8px;
+  font-size: 11px; color: var(--green); letter-spacing: 2px;
+}
+.ascii-logo {
+  color: var(--green); font-size: 10px; line-height: 1.25;
+  text-shadow: var(--glow); white-space: pre; overflow: hidden;
+}
+.boot-info {
+  display: flex; gap: 24px; margin-top: 12px;
+  font-size: 11px; color: var(--muted); flex-wrap: wrap;
+}
+.boot-info span { color: var(--green2); }
+
+/* Wallet bar */
+.wallet-bar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 18px; padding: 11px 14px;
+  border: 1px solid var(--border); background: var(--green-dim);
+}
+.prompt { color: var(--green); font-size: 14px; }
+#walletStatus { flex:1; font-size:11px; color:var(--muted); word-break:break-all; }
+#walletStatus.connected { color: var(--green); }
+.btn-connect {
+  background: transparent; border: 1px solid var(--green);
+  color: var(--green); font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; padding: 7px 16px; cursor: pointer;
+  letter-spacing: 1px; transition: all .15s; text-transform: uppercase; white-space:nowrap;
+}
+.btn-connect:hover { background: var(--green); color: var(--bg); box-shadow: var(--glow); }
+.btn-connect:disabled { opacity:.4; cursor:not-allowed; }
+.status-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+.status-dot.on { background:var(--green); box-shadow:0 0 8px var(--green); animation:blink 1.2s infinite; }
+@keyframes blink { 50%{opacity:.4} }
+
+/* Panels */
+.panel { border:1px solid var(--border); margin-bottom:14px; background:var(--surface); }
+.panel-title {
+  padding: 9px 14px; border-bottom:1px solid var(--border);
+  font-size:10px; letter-spacing:2px; color:var(--green);
+  text-transform:uppercase; display:flex; align-items:center; gap:8px;
+}
+.panel-title::before { content:'▶'; font-size:9px; }
+.panel-body { padding:14px; }
+
+/* Inputs */
+.input-row { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+.input-label { font-size:10px; color:var(--muted); width:76px; flex-shrink:0; letter-spacing:1px; text-transform:uppercase; }
+.term-input {
+  flex:1; background:#000; border:1px solid var(--border);
+  color:var(--green); font-family:'Share Tech Mono',monospace;
+  font-size:12px; padding:8px 11px; outline:none;
+  transition:border-color .2s,box-shadow .2s; caret-color:var(--green);
+}
+.term-input:focus { border-color:var(--green); box-shadow:inset 0 0 8px rgba(0,255,65,.07), var(--glow); }
+.term-input::placeholder { color:#1a4425; }
+.btn-exec {
+  background:var(--green); color:var(--bg); border:none;
+  font-family:'Share Tech Mono',monospace; font-size:11px;
+  padding:8px 18px; cursor:pointer; letter-spacing:1px;
+  font-weight:700; transition:all .15s; text-transform:uppercase; flex-shrink:0;
+}
+.btn-exec:hover { background:var(--green2); box-shadow:var(--glow-strong); }
+.btn-exec:disabled { opacity:.3; cursor:not-allowed; }
+
+/* Token info grid */
+.token-info-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:1px; background:var(--border); margin-top:6px;
+}
+.info-cell { background:var(--surface); padding:11px 13px; }
+.info-key { font-size:9px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px; }
+.info-val { font-size:15px; color:var(--green); text-shadow:0 0 8px rgba(0,255,65,.35); word-break:break-all; }
+.info-val.big { font-family:'Orbitron',monospace; font-size:18px; font-weight:700; }
+
+/* Tabs */
+.tabs { display:flex; border-bottom:1px solid var(--border); overflow-x:auto; }
+.tab {
+  padding:9px 18px; font-size:10px; letter-spacing:1.5px;
+  text-transform:uppercase; cursor:pointer; color:var(--muted);
+  border-right:1px solid var(--border); transition:all .15s;
+  background:transparent; border-top:none; border-left:none; border-bottom:none;
+  font-family:'Share Tech Mono',monospace; white-space:nowrap;
+}
+.tab:hover { color:var(--green); background:var(--green-dim); }
+.tab.active { color:var(--bg); background:var(--green); font-weight:700; }
+.tab-content { display:none; padding:14px; }
+.tab-content.active { display:block; }
+
+/* Result */
+.result-banner {
+  padding:9px 13px; margin-top:8px; font-size:12px;
+  display:none; border-left:3px solid;
+}
+.result-banner.ok { border-color:var(--green); color:var(--green); background:rgba(0,255,65,.04); }
+.result-banner.err { border-color:var(--red); color:var(--red); background:rgba(255,34,68,.04); }
+
+/* Progress */
+.progress-wrap { height:2px; background:var(--border); margin:8px 0; overflow:hidden; display:none; }
+.progress-bar { height:100%; background:var(--green); width:0%; transition:width .3s; box-shadow:var(--glow); }
+
+/* TX Log */
+.tx-log {
+  background:#000; padding:12px;
+  height:180px; overflow-y:auto;
+  font-size:11px; line-height:1.8;
+}
+.tx-log::-webkit-scrollbar { width:3px; }
+.tx-log::-webkit-scrollbar-thumb { background:var(--green); }
+.log-line { display:flex; gap:10px; }
+.log-time { color:var(--muted); flex-shrink:0; }
+.log-ok { color:var(--green); }
+.log-err { color:var(--red); }
+.log-warn { color:var(--amber); }
+.log-info { color:var(--cyan); }
+
+@media(max-width:520px) {
+  .token-info-grid { grid-template-columns:1fr; }
+  .input-row { flex-wrap:wrap; }
+  .input-label { width:100%; }
+  .boot-info { flex-direction:column; gap:4px; }
+  .ascii-logo { font-size:7px; }
+}
+</style>
+</head>
+<body>
+<div class="terminal">
+
+  <div class="boot-header">
+    <div class="ascii-logo"> _____ ___  _  _______ _   _   _____ _____ ____  __  __ ___ _   _    _    _     
+|_   _/ _ \| |/ / ____| \ | | |_   _| ____|  _ \|  \/  |_ _| \ | |  / \  | |    
+  | || | | | ' /|  _| |  \| |   | | |  _| | |_) | |\/| || ||  \| | / _ \ | |    
+  | || |_| | . \| |___| |\  |   | | | |___|  _ &lt;| |  | || || |\  |/ ___ \| |___ 
+  |_| \___/|_|\_\_____|_| \_|   |_| |_____|_| \_\_|  |_|___|_| \_/_/   \_\_____|</div>
+    <div class="boot-info">
+      <div>NETWORK: <span id="networkName">BASE MAINNET</span></div>
+      <div>CHAIN-ID: <span>8453</span></div>
+      <div>PROTOCOL: <span>ERC-20</span></div>
+      <div>STATUS: <span style="color:var(--green)">READY</span></div>
+    </div>
+  </div>
+
+  <!-- Wallet Bar -->
+  <div class="wallet-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <div class="prompt">$</div>
+    <div id="walletStatus">wallet not connected — press [ CONNECT ]</div>
+    <button class="btn-connect" id="connectBtn" onclick="connectWallet()">[ CONNECT ]</button>
+  </div>
+
+  <!-- Contract Loader -->
+  <div class="panel">
+    <div class="panel-title">CONTRACT LOADER</div>
+    <div class="panel-body">
+      <div class="input-row">
+        <div class="input-label">CONTRACT</div>
+        <input class="term-input" id="contractAddr" placeholder="0x... ERC-20 token contract address লিখুন" />
+        <button class="btn-exec" onclick="loadContract()">LOAD</button>
+      </div>
+      <div class="input-row">
+        <div class="input-label">NETWORK</div>
+        <select class="term-input" id="networkSel" style="cursor:pointer" onchange="switchNetwork()">
+          <option value="https://mainnet.base.org">BASE MAINNET (8453)</option>
+          <option value="https://sepolia.base.org">BASE SEPOLIA (84532)</option>
+        </select>
+      </div>
+      <div class="progress-wrap" id="loadProgress"><div class="progress-bar" id="progressBar"></div></div>
+      <div id="tokenInfoWrap" style="display:none">
+        <div class="token-info-grid">
+          <div class="info-cell"><div class="info-key">Token Name</div><div class="info-val" id="tName">—</div></div>
+          <div class="info-cell"><div class="info-key">Symbol</div><div class="info-val big" id="tSymbol">—</div></div>
+          <div class="info-cell"><div class="info-key">Decimals</div><div class="info-val" id="tDecimals">—</div></div>
+          <div class="info-cell"><div class="info-key">Total Supply</div><div class="info-val" id="tSupply">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="panel" id="actionsPanel" style="display:none">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab(this,'balance')">BALANCE</button>
+      <button class="tab" onclick="switchTab(this,'transfer')">TRANSFER</button>
+      <button class="tab" onclick="switchTab(this,'approve')">APPROVE</button>
+      <button class="tab" onclick="switchTab(this,'allowance')">ALLOWANCE</button>
+    </div>
+
+    <div class="tab-content active" id="tab-balance">
+      <div class="input-row">
+        <div class="input-label">ADDRESS</div>
+        <input class="term-input" id="balAddr" placeholder="0x... (ফাঁকা রাখলে নিজের wallet)" />
+        <button class="btn-exec" onclick="getBalance()">QUERY</button>
+      </div>
+      <div class="result-banner" id="balResult"></div>
+    </div>
+
+    <div class="tab-content" id="tab-transfer">
+      <div class="input-row">
+        <div class="input-label">TO</div>
+        <input class="term-input" id="transferTo" placeholder="প্রাপকের 0x... address" />
+      </div>
+      <div class="input-row">
+        <div class="input-label">AMOUNT</div>
+        <input class="term-input" id="transferAmt" placeholder="পরিমাণ" type="number" min="0" step="any" />
+        <button class="btn-exec" onclick="doTransfer()">SEND</button>
+      </div>
+      <div class="result-banner" id="transferResult"></div>
+    </div>
+
+    <div class="tab-content" id="tab-approve">
+      <div class="input-row">
+        <div class="input-label">SPENDER</div>
+        <input class="term-input" id="approveSpender" placeholder="spender 0x... address" />
+      </div>
+      <div class="input-row">
+        <div class="input-label">AMOUNT</div>
+        <input class="term-input" id="approveAmt" placeholder="অনুমোদিত পরিমাণ" type="number" min="0" step="any" />
+        <button class="btn-exec" onclick="doApprove()">APPROVE</button>
+      </div>
+      <div class="result-banner" id="approveResult"></div>
+    </div>
+
+    <div class="tab-content" id="tab-allowance">
+      <div class="input-row">
+        <div class="input-label">OWNER</div>
+        <input class="term-input" id="allowOwner" placeholder="owner 0x... (ফাঁকা = নিজে)" />
+      </div>
+      <div class="input-row">
+        <div class="input-label">SPENDER</div>
+        <input class="term-input" id="allowSpender" placeholder="spender 0x..." />
+        <button class="btn-exec" onclick="getAllowance()">CHECK</button>
+      </div>
+      <div class="result-banner" id="allowResult"></div>
+    </div>
+  </div>
+
+  <!-- TX Log -->
+  <div class="panel">
+    <div class="panel-title">TRANSACTION LOG <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="logCount">0 entries</span></div>
+    <div class="tx-log" id="txLog">
+      <div class="log-line"><span class="log-time">00:00:00</span><span class="log-info">TOKEN::TERMINAL initialized. Base network ready. Awaiting commands...</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Selectors ─────────────────────────────────
+const SEL = {
+  'name()':                    '06fdde03',
+  'symbol()':                  '95d89b41',
+  'decimals()':                '313ce567',
+  'totalSupply()':             '18160ddd',
+  'balanceOf(address)':        '70a08231',
+  'transfer(address,uint256)': 'a9059cbb',
+  'approve(address,uint256)':  '095ea7b3',
+  'allowance(address,address)':'dd62ed3e',
+};
+
+let account = null, contractAddress = null, decimals = 18;
+let rpcUrl = 'https://mainnet.base.org', logCount = 0;
+
+const RPC_FALLBACKS = {
+  'https://mainnet.base.org': [
+    'https://base.llamarpc.com',
+    'https://base-rpc.publicnode.com',
+    'https://base.drpc.org',
+    'https://mainnet.base.org',
+  ],
+  'https://sepolia.base.org': [
+    'https://base-sepolia-rpc.publicnode.com',
+    'https://sepolia.base.org',
+  ]
+};
+
+// ── Logging ───────────────────────────────────
+function ts() { return new Date().toTimeString().slice(0,8); }
+function log(msg, type='ok') {
+  const el = document.getElementById('txLog');
+  const d = document.createElement('div');
+  d.className = 'log-line';
+  d.innerHTML = `<span class="log-time">${ts()}</span><span class="log-${type}">${msg}</span>`;
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+  document.getElementById('logCount').textContent = ++logCount + ' entries';
+}
+
+// ── ABI helpers ───────────────────────────────
+function encodeAddr(a) { return a.toLowerCase().replace('0x','').padStart(64,'0'); }
+function encodeU256(v) { return BigInt(v).toString(16).padStart(64,'0'); }
+
+async function rpc(method, params) {
+  const urls = RPC_FALLBACKS[rpcUrl] || [rpcUrl];
+  let lastErr;
+  for (const url of urls) {
+    try {
+      const r = await fetch(url, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({jsonrpc:"2.0",id:Date.now(),method,params})
+      });
+      const d = await r.json();
+      if(d.error) throw new Error(d.error.message);
+      return d.result;
+    } catch(e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+async function call(to, data) { return rpc('eth_call',[{to,data},'latest']); }
+
+function decodeStr(hex) {
+  hex = hex.replace('0x','');
+  const off = parseInt(hex.slice(0,64),16)*2;
+  const len = parseInt(hex.slice(off,off+64),16)*2;
+  const raw = hex.slice(off+64, off+64+len);
+  let s='';
+  for(let i=0;i<raw.length;i+=2) s+=String.fromCharCode(parseInt(raw.slice(i,i+2),16));
+  return s;
+}
+
+function decodeU(hex) { return BigInt('0x'+hex.replace('0x','').slice(-64)); }
+
+function fmt(raw, dec) {
+  const d=Number(dec), div=BigInt(10**d);
+  const w=raw/div, f=(raw%div).toString().padStart(d,'0').slice(0,4);
+  return `${Number(w).toLocaleString()}.${f}`;
+}
+
+function parse(amt, dec) {
+  const d=Number(dec), [w,fr='']= amt.toString().split('.');
+  return BigInt(w)*BigInt(10**d)+BigInt(fr.padEnd(d,'0').slice(0,d)||0);
+}
+
+// ── Wallet ────────────────────────────────────
+async function connectWallet() {
+  if(!window.ethereum){ log('MetaMask not found — install metamask.io','err'); return; }
+  try {
+    log('Requesting accounts...','warn');
+    const acc = await window.ethereum.request({method:'eth_requestAccounts'});
+    account = acc[0];
+    document.getElementById('walletStatus').textContent = account;
+    document.getElementById('walletStatus').className = 'connected';
+    document.getElementById('statusDot').className = 'status-dot on';
+    const btn = document.getElementById('connectBtn');
+    btn.textContent='[ CONNECTED ]'; btn.disabled=true;
+    log(`Connected: ${account}`,'ok');
+    try {
+      await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x2105'}]});
+      log('Switched to Base Mainnet (8453)','info');
+    } catch(e){ log('Manual network switch may be needed','warn'); }
+  } catch(e){ log('Connect rejected: '+e.message,'err'); }
+}
+
+function switchNetwork() {
+  rpcUrl = document.getElementById('networkSel').value;
+  const n = rpcUrl.includes('sepolia')?'BASE SEPOLIA':'BASE MAINNET';
+  document.getElementById('networkName').textContent = n;
+  log('Network: '+n,'info');
+}
+
+// ── Load Contract ─────────────────────────────
+async function loadContract() {
+  const addr = document.getElementById('contractAddr').value.trim();
+  if(!addr||addr.length!==42){ log('Invalid address','err'); return; }
+  contractAddress = addr;
+  log(`Loading: ${addr}`,'info');
+  const prog=document.getElementById('loadProgress'), bar=document.getElementById('progressBar');
+  prog.style.display='block';
+  try {
+    bar.style.width='20%';
+    const nameH = await call(addr,'0x'+SEL['name()']);
+    bar.style.width='40%';
+    const symH  = await call(addr,'0x'+SEL['symbol()']);
+    bar.style.width='60%';
+    const decH  = await call(addr,'0x'+SEL['decimals()']);
+    bar.style.width='80%';
+    const supH  = await call(addr,'0x'+SEL['totalSupply()']);
+    bar.style.width='100%';
+
+    const name=decodeStr(nameH), sym=decodeStr(symH);
+    decimals=Number(decodeU(decH));
+    const sup=decodeU(supH);
+
+    document.getElementById('tName').textContent    = name;
+    document.getElementById('tSymbol').textContent  = sym;
+    document.getElementById('tDecimals').textContent= decimals;
+    document.getElementById('tSupply').textContent  = fmt(sup,decimals)+' '+sym;
+    document.getElementById('tokenInfoWrap').style.display='block';
+    document.getElementById('actionsPanel').style.display='block';
+
+    log(`Loaded: ${name} (${sym})`,'ok');
+    log(`Supply: ${fmt(sup,decimals)} ${sym}`,'ok');
+    setTimeout(()=>{ prog.style.display='none'; bar.style.width='0%'; },500);
+  } catch(e) {
+    log('Load failed: '+e.message,'err');
+    prog.style.display='none'; bar.style.width='0%';
+  }
+}
+
+// ── Balance ───────────────────────────────────
+async function getBalance() {
+  if(!contractAddress){ log('Load contract first','err'); return; }
+  let addr = document.getElementById('balAddr').value.trim()||account;
+  if(!addr){ log('Enter address or connect wallet','err'); return; }
+  try {
+    log(`Querying balance: ${addr.slice(0,10)}...`,'info');
+    const hex = await call(contractAddress,'0x'+SEL['balanceOf(address)']+encodeAddr(addr));
+    const bal = decodeU(hex), sym=document.getElementById('tSymbol').textContent;
+    showResult('balResult',`✓ BALANCE: ${fmt(bal,decimals)} ${sym}`,true);
+    log(`Balance = ${fmt(bal,decimals)} ${sym}`,'ok');
+  } catch(e){ showResult('balResult','ERROR: '+e.message,false); log('Error: '+e.message,'err'); }
+}
+
+// ── Transfer ──────────────────────────────────
+async function doTransfer() {
+  if(!contractAddress||!account){ log('Load contract + connect wallet','err'); return; }
+  const to=document.getElementById('transferTo').value.trim();
+  const amt=document.getElementById('transferAmt').value.trim();
+  if(!to||!amt){ log('Fill TO and AMOUNT','err'); return; }
+  try {
+    const raw=parse(amt,decimals);
+    const data='0x'+SEL['transfer(address,uint256)']+encodeAddr(to)+encodeU256(raw);
+    log(`Sending ${amt} tokens → ${to.slice(0,10)}...`,'warn');
+    const tx=await window.ethereum.request({method:'eth_sendTransaction',params:[{from:account,to:contractAddress,data}]});
+    showResult('transferResult',`✓ TX: ${tx.slice(0,22)}...`,true);
+    log(`TX sent: ${tx}`,'ok');
+  } catch(e){ showResult('transferResult','ERROR: '+e.message,false); log('Transfer failed: '+e.message,'err'); }
+}
+
+// ── Approve ───────────────────────────────────
+async function doApprove() {
+  if(!contractAddress||!account){ log('Load contract + connect wallet','err'); return; }
+  const sp=document.getElementById('approveSpender').value.trim();
+  const amt=document.getElementById('approveAmt').value.trim();
+  if(!sp||!amt){ log('Fill SPENDER and AMOUNT','err'); return; }
+  try {
+    const raw=parse(amt,decimals);
+    const data='0x'+SEL['approve(address,uint256)']+encodeAddr(sp)+encodeU256(raw);
+    log(`Approving ${amt} for ${sp.slice(0,10)}...`,'warn');
+    const tx=await window.ethereum.request({method:'eth_sendTransaction',params:[{from:account,to:contractAddress,data}]});
+    showResult('approveResult',`✓ APPROVED: ${tx.slice(0,22)}...`,true);
+    log(`Approve TX: ${tx}`,'ok');
+  } catch(e){ showResult('approveResult','ERROR: '+e.message,false); log('Approve failed: '+e.message,'err'); }
+}
+
+// ── Allowance ─────────────────────────────────
+async function getAllowance() {
+  if(!contractAddress){ log('Load contract first','err'); return; }
+  const owner=document.getElementById('allowOwner').value.trim()||account;
+  const spender=document.getElementById('allowSpender').value.trim();
+  if(!owner||!spender){ log('Need OWNER and SPENDER','err'); return; }
+  try {
+    const data='0x'+SEL['allowance(address,address)']+encodeAddr(owner)+encodeAddr(spender);
+    const hex=await call(contractAddress,data);
+    const val=decodeU(hex), sym=document.getElementById('tSymbol').textContent;
+    showResult('allowResult',`✓ ALLOWANCE: ${fmt(val,decimals)} ${sym}`,true);
+    log(`Allowance = ${fmt(val,decimals)} ${sym}`,'ok');
+  } catch(e){ showResult('allowResult','ERROR: '+e.message,false); log('Error: '+e.message,'err'); }
+}
+
+// ── UI ────────────────────────────────────────
+function showResult(id, msg, ok) {
+  const el=document.getElementById(id);
+  el.textContent=msg; el.className='result-banner '+(ok?'ok':'err'); el.style.display='block';
+}
+
+function switchTab(btn, name) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.classList.contains('term-input')) {
+    const ac=document.querySelector('.tab-content.active');
+    if(ac){ const b=ac.querySelector('.btn-exec'); if(b) b.click(); }
+  }
+});
+</script>
+</body>
+</html>
